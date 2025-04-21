@@ -445,8 +445,8 @@ Source: "icon.ico"; DestDir: "{app}"
 Source: "twotech.ico"; DestDir: "{app}"
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{code:GameRootFolder}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{code:GameRootFolder}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{code:GameRootFolder}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{code:GameRootFolder}\{#MyAppExeName}"; Tasks: desktopicon; IconFilename: "{app}\icon.ico"
 Name: "{autodesktop}\TwoTech - Crafting Reference"; Filename: "https://twotech.twohoursonelife.com/"; IconFilename: "{app}\twotech.ico"; IconIndex: 0
 
 [Run]
