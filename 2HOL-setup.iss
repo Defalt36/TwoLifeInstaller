@@ -46,6 +46,7 @@ var
   DownloadPage: TDownloadWizardPage;
   ExtractProgressPage: TOutputProgressWizardPage;
   CustomUninstallForm: TSetupForm;
+  UninstallShouldProceed: Boolean;
 var
   UninstallVersionCheckBoxes: array of TNewCheckBox;
   
@@ -380,6 +381,7 @@ end;
 
 procedure NextFormButtonClick(Sender: TObject);
 begin
+  UninstallShouldProceed := True;
   CustomUninstallForm.Close;
 end;
 
@@ -389,6 +391,8 @@ var
   NewLabel: TLabel;
   NextButton: TNewButton;
 begin
+  UninstallShouldProceed := False;
+  
   CustomUninstallForm := CreateCustomForm;
   CustomUninstallForm.Caption := 'Uninstall Game Versions';
   CustomUninstallForm.Width := 300;
@@ -419,7 +423,14 @@ begin
   NextButton.OnClick := @NextFormButtonClick;
 
   CustomUninstallForm.ShowModal;
-  Result := True;
+  
+  // Don't proceed unless user clicked next on the form
+  begin
+    if UninstallShouldProceed then
+      Result := True
+    else
+      Result := False;
+  end;
 end;
 
 [Files]
