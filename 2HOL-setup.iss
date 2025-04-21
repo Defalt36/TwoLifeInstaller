@@ -114,7 +114,7 @@ begin
   end;
 end;
 
-function GetExtractProgress(FileName: String): Integer;
+function GetExtractProgress(FilePath: String): Integer;
 var
   LineCount: Integer;
   Lines: TArrayOfString;
@@ -122,7 +122,7 @@ var
   PosOfPercent: Integer;
 begin
   Result := 0;
-  if LoadStringsFromLockedFile(FileName, Lines) then
+  if LoadStringsFromLockedFile(FilePath, Lines) then
   begin
     LineCount := GetArrayLength(Lines);
     if LineCount <> 0 then
@@ -230,6 +230,9 @@ begin
     ExtractProgressPage.SetProgress(ExtractProgress, 100);
     Sleep(500);
   until ExtractProgress >= 100;
+  
+  DeleteFile(ExpandConstant('{tmp}\') + GetLastestRelease('filename'));
+  DeleteFile(OutputFile);
 
   ExtractProgressPage.Hide;
 end;
@@ -259,6 +262,13 @@ begin
   Result := R;
 end;
 
+function GameRootFolder(Param: String): String;
+begin
+  if GameFolder = '' then
+    GameFolder := '2HOL_v' + ExtractVersionNumber(GetLastestRelease('filename')) + '_win';
+  Result := GameFolder;
+end;
+
 procedure AddCheckbox(Caption: String; Checked: Boolean; TopPos: Integer);
 var
   CheckBox: TNewCheckBox;
@@ -283,24 +293,23 @@ begin
     DownloadPage.Add('https://api.github.com/repos/twohoursonelife/OneLife/releases/latest', 'latest.json', '');
     DownloadPage.Show;
     try
+      DownloadPage.Download;
+      
+      DownloadPage.Clear;
+      DownloadPage.Add(GetLastestRelease('link'), '2HOL-latest.zip', '');
+      DownloadPage.Show;
       try
-        DownloadPage.Download;
-        
-        DownloadPage.Clear;
-        DownloadPage.Add(GetLastestRelease('link'), '2HOL-latest.zip', '');
-        DownloadPage.Show;
-        try
+        if not DirExists(ExpandConstant('{app}/') + GameRootFolder('')) then
           DownloadPage.Download;
-        except
-          SuppressibleMsgBox(AddPeriod(GetExceptionMessage), mbCriticalError, MB_OK, IDOK);
-          Result := False;
-        end;
-        
-        Result := True;
       except
         SuppressibleMsgBox(AddPeriod(GetExceptionMessage), mbCriticalError, MB_OK, IDOK);
         Result := False;
       end;
+
+      Result := True;
+    except
+      SuppressibleMsgBox(AddPeriod(GetExceptionMessage), mbCriticalError, MB_OK, IDOK);
+      Result := False;
     finally
       DownloadPage.Hide;
     end;
@@ -308,16 +317,9 @@ begin
     Result := True;
 end;
 
-function InnerUncompressedFolder(Param: String): String;
-begin
-  if GameFolder = '' then
-    GameFolder := '2HOL_v' + ExtractVersionNumber(GetLastestRelease('filename')) + '_win';
-  Result := GameFolder;
-end;
-
 procedure SaveInstalledVersion;
 begin
-  SaveStringToFile(ExpandConstant('{app}\last_installed.txt'), InnerUncompressedFolder(''), False);
+  SaveStringToFile(ExpandConstant('{app}\last_installed.txt'), GameRootFolder(''), False);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -328,6 +330,12 @@ var
 begin
   if CurStep = ssInstall then
   begin
+    if DirExists(ExpandConstant('{app}/') + GameRootFolder('')) then
+    begin
+      MsgBox('Lastest game version already installed.', mbInformation, MB_OK);
+      Exit; // This game version is already installed. Abort.
+    end;
+    
     OutputFile := ExpandConstant('{tmp}\extraction_progress.txt');
     DeleteFile(OutputFile);
     ExtractTemporaryFile('7za.exe');
@@ -384,7 +392,7 @@ begin
   CustomUninstallForm := CreateCustomForm;
   CustomUninstallForm.Caption := 'Uninstall Game Versions';
   CustomUninstallForm.Width := 300;
-  CustomUninstallForm.Height := 125;
+  CustomUninstallForm.Height := 150;
   CustomUninstallForm.Position := poScreenCenter;
 
   NewLabel := TLabel.Create(CustomUninstallForm);
@@ -397,7 +405,7 @@ begin
   for lastIndex := 0 to GetArrayLength(GameVersions) - 1 do
   begin
     // add checkboxes one below another
-    AddCheckbox(GameVersions[lastIndex], True, 30 + (lastIndex*20));
+    AddCheckbox(GameVersions[lastIndex], True, 35 + (lastIndex*20));
   end;
   //dinamically change the window height depending on the number of elements
   CustomUninstallForm.Height := CustomUninstallForm.Height + (lastIndex*20) - 20;
@@ -405,7 +413,7 @@ begin
   NextButton := TNewButton.Create(CustomUninstallForm);
   NextButton.Parent := CustomUninstallForm;
   NextButton.Caption := 'Next';
-  NextButton.Top := 40 + (lastIndex*20);
+  NextButton.Top := 50 + (lastIndex*20);
   NextButton.Width := 100;
   NextButton.Left := (CustomUninstallForm.ClientWidth - NextButton.Width) div 2;
   NextButton.OnClick := @NextFormButtonClick;
@@ -416,21 +424,21 @@ end;
 
 [Files]
 ; It's already there
-; Source: "{app}\{code:InnerUncompressedFolder}\*"; DestDir: "{code:InnerUncompressedFolder}"; Flags: external recursesubdirs
+; Source: "{app}\{code:GameRootFolder}\*"; DestDir: "{code:GameRootFolder}"; Flags: external recursesubdirs
 ; Temporary Files
 Source: "7zip\7za.exe"; DestDir: "{tmp}"; Flags: dontcopy
 Source: "{tmp}\latest.json"; DestDir: "{tmp}"; Flags: external deleteafterinstall
-Source: "{tmp}\extraction_progress.txt"; DestDir: "{tmp}"; Flags: external deleteafterinstall
-Source: "{tmp}\2HOL-latest.zip"; DestDir: "{tmp}"; Flags: external deleteafterinstall
+;Source: "{tmp}\extraction_progress.txt"; DestDir: "{tmp}"; Flags: external deleteafterinstall
+;Source: "{tmp}\2HOL-latest.zip"; DestDir: "{tmp}"; Flags: external deleteafterinstall
 Source: "icon.ico"; DestDir: "{app}"
 Source: "twotech.ico"; DestDir: "{app}"
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{code:InnerUncompressedFolder}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{code:InnerUncompressedFolder}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{code:GameRootFolder}\{#MyAppExeName}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{code:GameRootFolder}\{#MyAppExeName}"; Tasks: desktopicon
 Name: "{autodesktop}\TwoTech - Crafting Reference"; Filename: "https://twotech.twohoursonelife.com/"; IconFilename: "{app}\twotech.ico"; IconIndex: 0
 
 [Run]
 Filename: "{#MyAppURL}"; Flags: shellexec postinstall runmaximized; Description: "Open 2HOL's Website"
 Filename: "{#DiscordURL}"; Flags: shellexec postinstall runmaximized; Description: "Open Discord Server for account info and help"
-Filename: "{app}\{code:InnerUncompressedFolder}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange('Two Hours One Life', '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{code:GameRootFolder}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange('Two Hours One Life', '&', '&&')}}"; Flags: nowait postinstall skipifsilent
