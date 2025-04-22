@@ -3,7 +3,7 @@
 This is a smart online installer built with [Inno Setup](http://www.jrsoftware.org/isinfo.php).  
 It automatically fetches the latest release of [Two Hours One Life](https://github.com/twohoursonelife/OneLife) and installs it to `%APPDATA%` or a folder of your choice.  
 
-Pre-built installers are available under [Releases](https://github.com/your-username/your-repo-name/releases).
+**[Download the latest installer](https://github.com/Defalt36/TwoLifeInstaller/releases/latest/download/2HOL-setup.exe)**
 
 ## Information
 
