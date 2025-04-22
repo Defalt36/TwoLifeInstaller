@@ -17,13 +17,15 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName={userappdata}\{#MyAppName}
+DefaultDirName={autopf}\{#MyAppName}
+DisableDirPage=auto
 UninstallDisplayIcon={app}\icon.ico
 ; Game will run on both x64 and x86 systems so just comment this and it defaults to what we want
 ; ArchitecturesAllowed=x64compatible
 ; ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=dialog         
 OutputBaseFilename=2HOL-setup
 SetupIconFile=icon.ico
 SolidCompression=yes
@@ -285,6 +287,13 @@ begin
   UninstallVersionCheckBoxes[High(UninstallVersionCheckBoxes)] := CheckBox;
 end;
 
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  // will skip folder selection if user is not installing as admin
+  if PageID = wpSelectDir then
+    if not IsAdminInstallMode then
+      Result := True; 
+end;
 function NextButtonClick(CurPageID: Integer): Boolean;
 var
   lastIndex: Integer;
