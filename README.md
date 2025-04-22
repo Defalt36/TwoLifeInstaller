@@ -1,4 +1,4 @@
-## Online Auto-Installer for Two Hours One Life
+## Unofficial Online Auto-Installer for Two Hours One Life
 
 This is a smart online installer built with [Inno Setup](http://www.jrsoftware.org/isinfo.php).  
 It automatically fetches the latest release of [Two Hours One Life](https://github.com/twohoursonelife/OneLife) and installs it to `%APPDATA%` or a folder of your choice.  
