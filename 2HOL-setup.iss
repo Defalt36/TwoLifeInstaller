@@ -209,9 +209,9 @@ begin
     begin
       Log('✅ Found file: ' + AssetName);
       Log('🔗 URL: ' + DownloadUrl);
-      if Mode = 'filename' then
+      if Mode = 'filename' then begin
         Result := AssetName
-      else
+      end else
         Result := DownloadUrl;
       Exit;
     end;
@@ -328,7 +328,6 @@ begin
       try
         if (LastInstalledVersion = InstallVersionFolder('')) then
           // only download the game if the last installed version is not equal to the lastest version
-          // 
           DownloadPage.Download;
       except
         SuppressibleMsgBox(AddPeriod(GetExceptionMessage), mbCriticalError, MB_OK, IDOK);
@@ -453,9 +452,9 @@ begin
   
   // Don't proceed unless user clicked next on the form
   begin
-    if UninstallShouldProceed then
+    if UninstallShouldProceed then begin
       Result := True
-    else
+    end else
       Result := False;
   end;
 end;
