@@ -356,7 +356,8 @@ begin
     if not FileExists(ExpandConstant('{tmp}\2HOL-latest.zip')) then
     begin
       // if 2HOL-latest.zip doesn't exist it may mean the download was skipped because this version is already installed
-      if DirExists(ExpandConstant('{app}/') + InstallVersionFolder('')) then begin
+      Log(ExpandConstant('{app}\') + InstallVersionFolder(''));
+      if DirExists(ExpandConstant('{app}\') + InstallVersionFolder('')) then begin
         MsgBox('Lastest game version already installed.', mbInformation, MB_OK);
       end else 
         MsgBox('Game was not properly downloaded.', mbInformation, MB_OK);
