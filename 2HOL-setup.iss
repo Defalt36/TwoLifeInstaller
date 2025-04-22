@@ -30,12 +30,10 @@ OutputBaseFilename=2HOL-setup
 SetupIconFile=icon.ico
 SolidCompression=yes
 WizardStyle=modern
+WizardResizable=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
-
-[Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checkedonce
 
 [Code]
 #include "JsonParser.pas"
@@ -49,8 +47,11 @@ var
   ExtractProgressPage: TOutputProgressWizardPage;
   CustomUninstallForm: TSetupForm;
   UninstallShouldProceed: Boolean;
-var
   UninstallVersionCheckBoxes: array of TNewCheckBox;
+var
+  InfoPage: TWizardPage;
+  InfoLabel: TLabel;
+  DiscordLink: TNewStaticText;
   
 function OnDownloadProgress(const Url, FileName: String; const Progress, ProgressMax: Int64): Boolean;
 begin
@@ -59,10 +60,54 @@ begin
   Result := True;
 end;
 
+procedure OpenDiscordLink(Sender: TObject);
+var
+    ErrCode: integer;
+begin
+  ShellExec('open', '{#DiscordURL}', '', '', SW_SHOW, ewNoWait, ErrCode);
+end;
+  
 procedure InitializeWizard;
 begin
   DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), SetupMessage(msgPreparingDesc), @OnDownloadProgress);
   ExtractProgressPage := CreateOutputProgressPage('Extracting Game Files', 'Please wait while the game files are extracted...');
+
+  // Create custom info page
+  InfoPage := CreateCustomPage(wpWelcome, 
+    'Welcome to Two Hours One Life!', 
+    '');
+
+  // Label for info page
+  InfoLabel := TLabel.Create(WizardForm);
+  InfoLabel.Parent := InfoPage.Surface;
+  InfoLabel.AutoSize := False;
+  InfoLabel.WordWrap := True;
+  InfoLabel.Left := 0;
+  InfoLabel.Top := 0;
+  InfoLabel.Width := InfoPage.SurfaceWidth;
+  InfoLabel.Height := InfoPage.SurfaceHeight - ScaleY(40);
+  InfoLabel.Font.Size := 9;
+  InfoLabel.Font.Style := [fsBold];
+  InfoLabel.Caption :=
+    '⚠️ Required steps to play Two Hours One Life ⚠️:' + #13#10#13#10 +
+    '◆ Join the Discord server for the game' + #13#10 +
+    '◆ Accept the server rules' + #13#10 +
+    '◆ A Discord bot will send you your login credentials' + #13#10#13#10 +
+    'Missed the message? Just type "/account" in any channel in the server.' + #13#10#13#10 +
+    'Note: You’ll need a Discord account. If you don''t have one just click the link and you should proceed to create your account.';
+  
+  // Create discord link in info ´page
+  DiscordLink := TNewStaticText.Create(WizardForm);
+  DiscordLink.Parent := InfoPage.Surface;
+  DiscordLink.Caption := '📢 JOIN THE DISCORD SERVER TO GET YOUR LOGIN INFO 📢';
+  DiscordLink.AutoSize := True;
+  DiscordLink.Cursor := crHand;
+  DiscordLink.Font.Color := clNavy
+  DiscordLink.Font.Size := 11;
+  DiscordLink.Font.Style := [fsBold];
+  DiscordLink.Top := InfoPage.SurfaceHeight - ScaleY(25);
+  DiscordLink.Left := (WizardForm.Width - DiscordLink.Width) div 2;
+  DiscordLink.OnClick := @OpenDiscordLink;
 end;
   
 function GetJsonRoot(Output: TJsonParserOutput): TJsonObject;
@@ -477,7 +522,7 @@ Type: files; Name: "{app}\last_installed.txt"
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:InstallVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{code:InstallVersionFolder}\{#MainExeName}"; Tasks: desktopicon; IconFilename: "{app}\icon.ico"
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{code:InstallVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
 Name: "{autodesktop}\TwoTech - Crafting Reference"; Filename: "https://twotech.twohoursonelife.com/"; IconFilename: "{app}\twotech.ico"; IconIndex: 0
 
 [Run]
