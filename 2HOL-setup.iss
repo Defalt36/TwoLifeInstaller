@@ -25,7 +25,7 @@ UninstallDisplayIcon={app}\icon.ico
 ; ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=dialog         
+PrivilegesRequiredOverridesAllowed=dialog
 OutputBaseFilename=2HOL-setup
 SetupIconFile=icon.ico
 SolidCompression=yes
@@ -265,11 +265,27 @@ begin
   Result := R;
 end;
 
-function GameRootFolder(Param: String): String;
+// this returns not the installing folder but the inner folder the game binary is located
+function InstallVersionFolder(Param: String): String;
 begin
   if GameFolder = '' then
     GameFolder := '2HOL_v' + ExtractVersionNumber(GetLastestRelease('filename')) + '_win';
   Result := GameFolder;
+end;
+
+procedure SaveInstalledVersion;
+begin
+  SaveStringToFile(ExpandConstant('{app}\last_installed.txt'), InstallVersionFolder(''), False);
+end;
+
+function LastInstalledVersion: String;
+var
+  lastInstalled: AnsiString;
+begin
+  if LoadStringFromFile(ExpandConstant('{app}\last_installed.txt'), lastInstalled) then begin
+    Result := lastInstalled;
+  end else
+    Result := '';
 end;
 
 procedure AddCheckbox(Caption: String; Checked: Boolean; TopPos: Integer);
@@ -294,6 +310,7 @@ begin
     if not IsAdminInstallMode then
       Result := True; 
 end;
+
 function NextButtonClick(CurPageID: Integer): Boolean;
 var
   lastIndex: Integer;
@@ -309,7 +326,9 @@ begin
       DownloadPage.Add(GetLastestRelease('link'), '2HOL-latest.zip', '');
       DownloadPage.Show;
       try
-        if not DirExists(ExpandConstant('{app}/') + GameRootFolder('')) then
+        if (LastInstalledVersion = InstallVersionFolder('')) then
+          // only download the game if the last installed version is not equal to the lastest version
+          // 
           DownloadPage.Download;
       except
         SuppressibleMsgBox(AddPeriod(GetExceptionMessage), mbCriticalError, MB_OK, IDOK);
@@ -327,11 +346,6 @@ begin
     Result := True;
 end;
 
-procedure SaveInstalledVersion;
-begin
-  SaveStringToFile(ExpandConstant('{app}\last_installed.txt'), GameRootFolder(''), False);
-end;
-
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ResultCode: Integer;
@@ -340,10 +354,14 @@ var
 begin
   if CurStep = ssInstall then
   begin
-    if DirExists(ExpandConstant('{app}/') + GameRootFolder('')) then
+    if not FileExists(ExpandConstant('{tmp}\2HOL-latest.zip')) then
     begin
-      MsgBox('Lastest game version already installed.', mbInformation, MB_OK);
-      Exit; // This game version is already installed. Abort.
+      // if 2HOL-latest.zip doesn't exist it may mean the download was skipped because this version is already installed
+      if DirExists(ExpandConstant('{app}/') + InstallVersionFolder('')) then begin
+        MsgBox('Lastest game version already installed.', mbInformation, MB_OK);
+      end else 
+        MsgBox('Game was not properly downloaded.', mbInformation, MB_OK);
+      Exit;
     end;
     
     OutputFile := ExpandConstant('{tmp}\extraction_progress.txt');
@@ -444,7 +462,7 @@ end;
 
 [Files]
 ; It's already there
-; Source: "{app}\{code:GameRootFolder}\*"; DestDir: "{code:GameRootFolder}"; Flags: external recursesubdirs
+; Source: "{app}\{code:InstallVersionFolder}\*"; DestDir: "{code:InstallVersionFolder}"; Flags: external recursesubdirs
 ; Temporary Files
 Source: "7zip\7za.exe"; DestDir: "{tmp}"; Flags: dontcopy
 Source: "{tmp}\latest.json"; DestDir: "{tmp}"; Flags: external deleteafterinstall
@@ -453,12 +471,16 @@ Source: "{tmp}\latest.json"; DestDir: "{tmp}"; Flags: external deleteafterinstal
 Source: "icon.ico"; DestDir: "{app}"
 Source: "twotech.ico"; DestDir: "{app}"
 
+[UninstallDelete]
+; If this file is deleted it will override on next installation if set on same folder
+Type: files; Name: "{app}\last_installed.txt"
+
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{code:GameRootFolder}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{code:GameRootFolder}\{#MyAppExeName}"; Tasks: desktopicon; IconFilename: "{app}\icon.ico"
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{code:InstallVersionFolder}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{code:InstallVersionFolder}\{#MyAppExeName}"; Tasks: desktopicon; IconFilename: "{app}\icon.ico"
 Name: "{autodesktop}\TwoTech - Crafting Reference"; Filename: "https://twotech.twohoursonelife.com/"; IconFilename: "{app}\twotech.ico"; IconIndex: 0
 
 [Run]
 Filename: "{#MyAppURL}"; Flags: shellexec postinstall runmaximized; Description: "Open 2HOL's Website"
 Filename: "{#DiscordURL}"; Flags: shellexec postinstall runmaximized; Description: "Open Discord Server for account info and help"
-Filename: "{app}\{code:GameRootFolder}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange('Two Hours One Life', '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{code:InstallVersionFolder}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange('Two Hours One Life', '&', '&&')}}"; Flags: nowait postinstall skipifsilent
