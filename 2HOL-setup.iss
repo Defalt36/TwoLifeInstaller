@@ -18,7 +18,7 @@ AppPublisher={#AppPublisher}
 AppPublisherURL={#WebsiteURL}
 AppSupportURL={#WebsiteURL}
 AppUpdatesURL={#WebsiteURL}
-DefaultDirName={autopf}\{#FolderName}
+DefaultDirName={autopf}\{#MainFolder}
 DisableDirPage=auto
 UninstallDisplayIcon={app}\icon.ico
 ; Game will run on both x64 and x86 systems so just comment this and it defaults to what we want
@@ -326,7 +326,7 @@ begin
       DownloadPage.Add(GetLastestRelease('link'), '2HOL-latest.zip', '');
       DownloadPage.Show;
       try
-        if (LastInstalledVersion = InstallVersionFolder('')) then
+        if not (LastInstalledVersion = InstallVersionFolder('')) then
           // only download the game if the last installed version is not equal to the lastest version
           DownloadPage.Download;
       except
@@ -360,7 +360,7 @@ begin
       if DirExists(ExpandConstant('{app}\') + InstallVersionFolder('')) then begin
         MsgBox('Lastest game version already installed.', mbInformation, MB_OK);
       end else 
-        MsgBox('Game was not properly downloaded.', mbInformation, MB_OK);
+        MsgBox('The game was not properly downloaded and will not be installed.', mbInformation, MB_OK);
       Exit;
     end;
     
