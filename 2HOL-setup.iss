@@ -4,7 +4,8 @@
 #define AppName "Two Hours One Life"
 #define AppPublisher "Two Hours One Life Community"
 #define WebsiteURL "https://twohoursonelife.com/"
-#define DiscordURL "https://discord.com/invite/twohoursonelife"
+#define DiscordURL "https://discord.gg/twohoursonelife"
+#define TwoTechURL "https://twotech.twohoursonelife.com"
 #define MainExeName "OneLife.exe"
 #define MainFolder "2HOL"
 
@@ -41,16 +42,13 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 #include "JsonParser.pas"
 
 var
-  OutputFile: String;
-  GameFolder: String;
-  GameVersions: TArrayOfString;
-var
   DownloadPage: TDownloadWizardPage;
   ExtractProgressPage: TOutputProgressWizardPage;
   CustomUninstallForm: TSetupForm;
   UninstallShouldProceed: Boolean;
   UninstallVersionCheckBoxes: array of TNewCheckBox;
-  
+  GameFolder: String;
+
 function OnDownloadProgress(const Url, FileName: String; const Progress, ProgressMax: Int64): Boolean;
 begin
   if Progress = ProgressMax then
@@ -69,7 +67,7 @@ procedure InitializeWizard;
 var
   SubLabel: TLabel;
   InfoLabel: TLabel;
-  DiscordLink: TNewStaticText;
+  DiscordLink: TLabel;
 begin
   DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), SetupMessage(msgPreparingDesc), @OnDownloadProgress);
   ExtractProgressPage := CreateOutputProgressPage('Extracting Game Files', 'Please wait while the game files are extracted...');
@@ -103,9 +101,12 @@ begin
     'Note: You’ll need a Discord account. Click the link to sign up and get started.';
   
   // Create discord link in welcome page
-  DiscordLink := TNewStaticText.Create(WizardForm);
+  DiscordLink := TLabel.Create(WizardForm);
   DiscordLink.Parent := WizardForm.WelcomePage;
-  DiscordLink.Caption := '  ▶ Join The Discord Server For Your Login Info';
+  DiscordLink.Caption :=
+    'Click to Join the Server for Your Login Info:' + #13#10 +
+    '{#DiscordURL}';
+  DiscordLink.Alignment := taCenter;
   DiscordLink.AutoSize := True;
   DiscordLink.Cursor := crHand;
   DiscordLink.Font.Color := clNavy
@@ -270,7 +271,7 @@ begin
   ClearJsonParser(JsonParser);
 end;
 
-procedure ShowProgressPageAndResolve;
+procedure ShowProgressPageAndResolve(const OutputFile: String);
 var
   ExtractProgress: Integer;
 begin
@@ -283,9 +284,6 @@ begin
     ExtractProgressPage.SetProgress(ExtractProgress, 100);
     Sleep(500);
   until ExtractProgress >= 100;
-  
-  DeleteFile(ExpandConstant('{tmp}\') + GetLastestRelease('filename'));
-  DeleteFile(OutputFile);
 
   ExtractProgressPage.Hide;
 end;
@@ -397,13 +395,17 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
+  OutputFile: String;
+  GameFile: String;
   ResultCode: Integer;
-  Cmd: String;
+  Params: String;
   ExtractProgress: Integer;
 begin
   if CurStep = ssInstall then
   begin
-    if not FileExists(ExpandConstant('{tmp}\2HOL-latest.zip')) then
+    GameFile := ExpandConstant('{tmp}\2HOL-latest.zip');
+    
+    if not FileExists(GameFile) then
     begin
       // if 2HOL-latest.zip doesn't exist it may mean the download was skipped because this version is already installed
       Log(ExpandConstant('{app}\') + InstallVersionFolder(''));
@@ -414,19 +416,25 @@ begin
       Exit;
     end;
     
-    OutputFile := ExpandConstant('{tmp}\extraction_progress.txt');
+    OutputFile := ExpandConstant('{app}\extraction_progress.txt');
     DeleteFile(OutputFile);
     ExtractTemporaryFile('7za.exe');
-    Cmd := '/C "' + ExpandConstant('{tmp}\7za.exe') + ' -bsp1 x "' + ExpandConstant('{tmp}\2HOL-latest.zip') + '" -o"' + ExpandConstant('{app}') + '" -aos' + ' > "' + OutputFile + '"';
+    Params := '/C "' + ExpandConstant('{tmp}\7za.exe') + ' -bsp1 x "' + GameFile + '" -o"' + ExpandConstant('{app}') + '" -aos' + ' > "' + OutputFile + '"';
     
-    // this runs 7zip extraction asynchronously while saving progress to file
-    if Exec('cmd.exe', Cmd, '', SW_HIDE, ewNoWait, ResultCode) then
+    // This runs 7zip extraction asynchronously while saving progress to file
+    // It also gets flaged by security sofware because it's geting stdout out the cmd via '>' redirection
+    // However that's the only way to get real time extraction tracking
+    if Exec('cmd.exe', Params, '', SW_HIDE, ewNoWait, ResultCode) then
     begin
       Log('Extracting game...');
     end;
     ExtractProgress := 0;
     
-    ShowProgressPageAndResolve; // this will read the progress file that's being written asynchronously
+    ShowProgressPageAndResolve(OutputFile); // this will read the progress file that's being written asynchronously
+    
+    DeleteFile(GameFile);
+    DeleteFile(OutputFile);
+    
     SaveInstalledVersion;
   end;
 end;
@@ -464,6 +472,7 @@ end;
 
 function InitializeUninstall(): Boolean;
 var
+  GameVersions: TArrayOfString;
   lastIndex: Integer;
   NewLabel: TLabel;
   NextButton: TNewButton;
@@ -499,9 +508,8 @@ begin
   NextButton.Left := (CustomUninstallForm.ClientWidth - NextButton.Width) div 2;
   NextButton.OnClick := @NextFormButtonClick;
 
-  CustomUninstallForm.ShowModal;
+  CustomUninstallForm.ShowModal; // This doesn't resolve until NextButton is clicked
   
-  // Don't proceed unless user clicked next on the form
   begin
     if UninstallShouldProceed then begin
       Result := True
@@ -525,8 +533,11 @@ Type: files; Name: "{app}\last_installed.txt"
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:InstallVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
+Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:InstallVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
+Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:InstallVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
+Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:InstallVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{code:InstallVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
-Name: "{autodesktop}\TwoTech - Crafting Reference"; Filename: "https://twotech.twohoursonelife.com/"; IconFilename: "{app}\twotech.ico"; IconIndex: 0
+Name: "{autodesktop}\TwoTech - Crafting Reference"; Filename: "{#TwoTechURL}"; IconFilename: "{app}\twotech.ico"
 
 [Run]
 Filename: "{#WebsiteURL}"; Flags: shellexec postinstall runmaximized; Description: "Open 2HOL's Website"
