@@ -31,6 +31,8 @@ SetupIconFile=icon.ico
 SolidCompression=yes
 WizardStyle=modern
 WizardResizable=no
+DisableWelcomePage=no
+WizardImageFile=background.bmp
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -48,10 +50,6 @@ var
   CustomUninstallForm: TSetupForm;
   UninstallShouldProceed: Boolean;
   UninstallVersionCheckBoxes: array of TNewCheckBox;
-var
-  InfoPage: TWizardPage;
-  InfoLabel: TLabel;
-  DiscordLink: TNewStaticText;
   
 function OnDownloadProgress(const Url, FileName: String; const Progress, ProgressMax: Int64): Boolean;
 begin
@@ -68,45 +66,52 @@ begin
 end;
   
 procedure InitializeWizard;
+var
+  SubLabel: TLabel;
+  InfoLabel: TLabel;
+  DiscordLink: TNewStaticText;
 begin
   DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), SetupMessage(msgPreparingDesc), @OnDownloadProgress);
   ExtractProgressPage := CreateOutputProgressPage('Extracting Game Files', 'Please wait while the game files are extracted...');
+  
+  // Title for welcome page
+  WizardForm.WelcomeLabel1.Caption := 'Welcome to Two Hours One Life!';
+  WizardForm.WelcomeLabel2.Visible := False;
 
-  // Create custom info page
-  InfoPage := CreateCustomPage(wpWelcome, 
-    'Welcome to Two Hours One Life!', 
-    '');
-
-  // Label for info page
+  // Subtitle for welcome page
+  SubLabel := TLabel.Create(WizardForm);
+  SubLabel.Parent := WizardForm.WelcomePage;
+  SubLabel.AutoSize := True;
+  SubLabel.WordWrap := True;
+  SubLabel.Top := 75;
+  SubLabel.Font.Size := 9;
+  SubLabel.Font.Style := [fsBold];
+  SubLabel.Caption := 'Required steps to play Two Hours One Life:';
+  
+  // Instructions in welcome page
   InfoLabel := TLabel.Create(WizardForm);
-  InfoLabel.Parent := InfoPage.Surface;
-  InfoLabel.AutoSize := False;
+  InfoLabel.Parent := WizardForm.WelcomePage;
+  InfoLabel.AutoSize := True;
   InfoLabel.WordWrap := True;
-  InfoLabel.Left := 0;
-  InfoLabel.Top := 0;
-  InfoLabel.Width := InfoPage.SurfaceWidth;
-  InfoLabel.Height := InfoPage.SurfaceHeight - ScaleY(40);
+  InfoLabel.Top := 100;
   InfoLabel.Font.Size := 9;
-  InfoLabel.Font.Style := [fsBold];
   InfoLabel.Caption :=
-    '⚠️ Required steps to play Two Hours One Life ⚠️:' + #13#10#13#10 +
     '◆ Join the Discord server for the game' + #13#10 +
     '◆ Accept the server rules' + #13#10 +
     '◆ A Discord bot will send you your login credentials' + #13#10#13#10 +
     'Missed the message? Just type "/account" in any channel in the server.' + #13#10#13#10 +
     'Note: You’ll need a Discord account. Click the link to sign up and get started.';
   
-  // Create discord link in info ´page
+  // Create discord link in welcome page
   DiscordLink := TNewStaticText.Create(WizardForm);
-  DiscordLink.Parent := InfoPage.Surface;
-  DiscordLink.Caption := '✦ JOIN THE DISCORD SERVER TO GET YOUR LOGIN INFO ✦';
+  DiscordLink.Parent := WizardForm.WelcomePage;
+  DiscordLink.Caption := '  ▶ Join The Discord Server For Your Login Info';
   DiscordLink.AutoSize := True;
   DiscordLink.Cursor := crHand;
   DiscordLink.Font.Color := clNavy
   DiscordLink.Font.Size := 11;
   DiscordLink.Font.Style := [fsBold];
-  DiscordLink.Top := InfoPage.SurfaceHeight - ScaleY(25);
-  DiscordLink.Left := (WizardForm.Width - DiscordLink.Width) div 2;
+  DiscordLink.Top := WizardForm.Height - 75;
   DiscordLink.OnClick := @OpenDiscordLink;
 end;
   
@@ -509,6 +514,7 @@ end;
 ; Temporary Files
 Source: "{tmp}\latest.json"; DestDir: "{tmp}"; Flags: external deleteafterinstall
 Source: "7zip\7za.exe"; DestDir: "{tmp}"; Flags: dontcopy
+Source: "background.bmp"; DestDir: "{tmp}"; Flags: dontcopy
 ; Permanent Files
 Source: "icon.ico"; DestDir: "{app}"
 Source: "twotech.ico"; DestDir: "{app}"
