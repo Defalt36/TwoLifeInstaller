@@ -4,7 +4,8 @@
 #define AppName "Two Hours One Life"
 #define AppPublisher "Two Hours One Life Community"
 #define WebsiteURL "https://twohoursonelife.com/"
-#define DiscordURL "https://discord.com/invite/twohoursonelife"
+#define DiscordURL "https://discord.gg/twohoursonelife"
+#define TwoTechURL "https://twotech.twohoursonelife.com"
 #define MainExeName "OneLife.exe"
 #define MainFolder "2HOL"
 
@@ -41,16 +42,13 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 #include "JsonParser.pas"
 
 var
-  OutputFile: String;
-  GameFolder: String;
-  GameVersions: TArrayOfString;
-var
   DownloadPage: TDownloadWizardPage;
   ExtractProgressPage: TOutputProgressWizardPage;
   CustomUninstallForm: TSetupForm;
   UninstallShouldProceed: Boolean;
   UninstallVersionCheckBoxes: array of TNewCheckBox;
-  
+  VersionFolderName: String;
+
 function OnDownloadProgress(const Url, FileName: String; const Progress, ProgressMax: Int64): Boolean;
 begin
   if Progress = ProgressMax then
@@ -60,7 +58,7 @@ end;
 
 procedure OpenDiscordLink(Sender: TObject);
 var
-    ErrCode: integer;
+  ErrCode: integer;
 begin
   ShellExec('open', '{#DiscordURL}', '', '', SW_SHOW, ewNoWait, ErrCode);
 end;
@@ -69,7 +67,7 @@ procedure InitializeWizard;
 var
   SubLabel: TLabel;
   InfoLabel: TLabel;
-  DiscordLink: TNewStaticText;
+  DiscordLink: TLabel;
 begin
   DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), SetupMessage(msgPreparingDesc), @OnDownloadProgress);
   ExtractProgressPage := CreateOutputProgressPage('Extracting Game Files', 'Please wait while the game files are extracted...');
@@ -103,12 +101,15 @@ begin
     'Note: You’ll need a Discord account. Click the link to sign up and get started.';
   
   // Create discord link in welcome page
-  DiscordLink := TNewStaticText.Create(WizardForm);
+  DiscordLink := TLabel.Create(WizardForm);
   DiscordLink.Parent := WizardForm.WelcomePage;
-  DiscordLink.Caption := '  ▶ Join The Discord Server For Your Login Info';
+  DiscordLink.Caption :=
+    'Click to Join the Server for Your Login Info:' + #13#10 +
+    '{#DiscordURL}';
+  DiscordLink.Alignment := taCenter;
   DiscordLink.AutoSize := True;
   DiscordLink.Cursor := crHand;
-  DiscordLink.Font.Color := clNavy
+  DiscordLink.Font.Color := clNavy;
   DiscordLink.Font.Size := 11;
   DiscordLink.Font.Style := [fsBold];
   DiscordLink.Top := WizardForm.Height - 75;
@@ -163,35 +164,6 @@ begin
     for I := 0 to Length(JsonParser.Output.Errors) - 1 do
     begin
       Log(JsonParser.Output.Errors[I]);
-    end;
-  end;
-end;
-
-function GetExtractProgress(FilePath: String): Integer;
-var
-  LineCount: Integer;
-  Lines: TArrayOfString;
-  LastLine: String;
-  PosOfPercent: Integer;
-begin
-  Result := 0;
-  if LoadStringsFromLockedFile(FilePath, Lines) then
-  begin
-    LineCount := GetArrayLength(Lines);
-    if LineCount <> 0 then
-    begin
-      LastLine := Lines[LineCount - 1];
-      PosOfPercent := Pos('%', LastLine);
-      
-      if PosOfPercent > 1 then
-      begin
-        Result := StrToIntDef(Copy(LastLine, 1, PosOfPercent - 1), 0);
-      end;
-    
-      if (Pos('Everything is Ok', LastLine) = 1) or (Pos('Compressed:', LastLine) = 1) then
-      begin
-        Result := 100;
-      end;
     end;
   end;
 end;
@@ -270,7 +242,36 @@ begin
   ClearJsonParser(JsonParser);
 end;
 
-procedure ShowProgressPageAndResolve;
+function GetExtractProgress(FilePath: String): Integer;
+var
+  LineCount: Integer;
+  Lines: TArrayOfString;
+  LastLine: String;
+  PosOfPercent: Integer;
+begin
+  Result := 0;
+  if LoadStringsFromLockedFile(FilePath, Lines) then
+  begin
+    LineCount := GetArrayLength(Lines);
+    if LineCount <> 0 then
+    begin
+      LastLine := Lines[LineCount - 1];
+      PosOfPercent := Pos('%', LastLine);
+      
+      if PosOfPercent > 1 then
+      begin
+        Result := StrToIntDef(Copy(LastLine, 1, PosOfPercent - 1), 0);
+      end;
+    
+      if (Pos('Everything is Ok', LastLine) = 1) or (Pos('Compressed:', LastLine) = 1) then
+      begin
+        Result := 100;
+      end;
+    end;
+  end;
+end;
+
+procedure ShowProgressPageAndResolve(const OutputFile: String);
 var
   ExtractProgress: Integer;
 begin
@@ -283,9 +284,6 @@ begin
     ExtractProgressPage.SetProgress(ExtractProgress, 100);
     Sleep(500);
   until ExtractProgress >= 100;
-  
-  DeleteFile(ExpandConstant('{tmp}\') + GetLastestRelease('filename'));
-  DeleteFile(OutputFile);
 
   ExtractProgressPage.Hide;
 end;
@@ -316,16 +314,16 @@ begin
 end;
 
 // this returns not the installing folder but the inner folder the game binary is located
-function InstallVersionFolder(Param: String): String;
+function ReturnVersionFolder(Param: String): String;
 begin
-  if GameFolder = '' then
-    GameFolder := '2HOL_v' + ExtractVersionNumber(GetLastestRelease('filename')) + '_win';
-  Result := GameFolder;
+  if VersionFolder = '' then
+    VersionFolder := '2HOL_v' + ExtractVersionNumber(GetLastestRelease('filename')) + '_win';
+  Result := VersionFolder;
 end;
 
 procedure SaveInstalledVersion;
 begin
-  SaveStringToFile(ExpandConstant('{app}\last_installed.txt'), InstallVersionFolder(''), False);
+  SaveStringToFile(ExpandConstant('{app}\last_installed.txt'), ReturnVersionFolder(''), False);
 end;
 
 function LastInstalledVersion: String;
@@ -376,7 +374,7 @@ begin
       DownloadPage.Add(GetLastestRelease('link'), '2HOL-latest.zip', '');
       DownloadPage.Show;
       try
-        if not (LastInstalledVersion = InstallVersionFolder('')) then
+        if not (LastInstalledVersion = ReturnVersionFolder('')) then
           // only download the game if the last installed version is not equal to the lastest version
           DownloadPage.Download;
       except
@@ -397,36 +395,47 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
+  OutputFile: String;
+  GameFile: String;
+  GameFolder: String;
   ResultCode: Integer;
-  Cmd: String;
+  Params: String;
   ExtractProgress: Integer;
 begin
   if CurStep = ssInstall then
   begin
-    if not FileExists(ExpandConstant('{tmp}\2HOL-latest.zip')) then
+    GameFile := ExpandConstant('{tmp}\2HOL-latest.zip');
+    GameFolder := ExpandConstant('{app}\') + ReturnVersionFolder('');
+    
+    if not FileExists(GameFile) then
     begin
       // if 2HOL-latest.zip doesn't exist it may mean the download was skipped because this version is already installed
-      Log(ExpandConstant('{app}\') + InstallVersionFolder(''));
-      if DirExists(ExpandConstant('{app}\') + InstallVersionFolder('')) then begin
+      if DirExists(GameFolder) then begin
         MsgBox('Lastest game version already installed.', mbInformation, MB_OK);
       end else 
         MsgBox('The game was not properly downloaded and will not be installed.', mbInformation, MB_OK);
       Exit;
     end;
     
-    OutputFile := ExpandConstant('{tmp}\extraction_progress.txt');
+    OutputFile := ExpandConstant('{app}\extraction_progress.txt');
     DeleteFile(OutputFile);
     ExtractTemporaryFile('7za.exe');
-    Cmd := '/C "' + ExpandConstant('{tmp}\7za.exe') + ' -bsp1 x "' + ExpandConstant('{tmp}\2HOL-latest.zip') + '" -o"' + ExpandConstant('{app}') + '" -aos' + ' > "' + OutputFile + '"';
+    Params := '/C "' + ExpandConstant('{tmp}\7za.exe') + ' -bsp1 x "' + GameFile + '" -o"' + ExpandConstant('{app}') + '" -aos' + ' > "' + OutputFile + '"';
     
-    // this runs 7zip extraction asynchronously while saving progress to file
-    if Exec('cmd.exe', Cmd, '', SW_HIDE, ewNoWait, ResultCode) then
+    // This runs 7zip extraction asynchronously while saving progress to file
+    // It also gets flaged by security sofware because it's geting stdout out the cmd via '>' redirection
+    // However that's the only way to get real time extraction tracking
+    if Exec('cmd.exe', Params, '', SW_HIDE, ewNoWait, ResultCode) then
     begin
       Log('Extracting game...');
     end;
     ExtractProgress := 0;
     
-    ShowProgressPageAndResolve; // this will read the progress file that's being written asynchronously
+    ShowProgressPageAndResolve(OutputFile); // this will read the progress file that's being written asynchronously
+    
+    DeleteFile(GameFile);
+    DeleteFile(OutputFile);
+    
     SaveInstalledVersion;
   end;
 end;
@@ -464,6 +473,7 @@ end;
 
 function InitializeUninstall(): Boolean;
 var
+  GameVersions: TArrayOfString;
   lastIndex: Integer;
   NewLabel: TLabel;
   NextButton: TNewButton;
@@ -499,9 +509,8 @@ begin
   NextButton.Left := (CustomUninstallForm.ClientWidth - NextButton.Width) div 2;
   NextButton.OnClick := @NextFormButtonClick;
 
-  CustomUninstallForm.ShowModal;
+  CustomUninstallForm.ShowModal; // This doesn't resolve until NextButton is clicked
   
-  // Don't proceed unless user clicked next on the form
   begin
     if UninstallShouldProceed then begin
       Result := True
@@ -524,11 +533,14 @@ Source: "twotech.ico"; DestDir: "{app}"
 Type: files; Name: "{app}\last_installed.txt"
 
 [Icons]
-Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:InstallVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{code:InstallVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
-Name: "{autodesktop}\TwoTech - Crafting Reference"; Filename: "https://twotech.twohoursonelife.com/"; IconFilename: "{app}\twotech.ico"; IconIndex: 0
+Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
+Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
+Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
+Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
+Name: "{autodesktop}\TwoTech - Crafting Reference"; Filename: "{#TwoTechURL}"; IconFilename: "{app}\twotech.ico"
 
 [Run]
 Filename: "{#WebsiteURL}"; Flags: shellexec postinstall runmaximized; Description: "Open 2HOL's Website"
 Filename: "{#DiscordURL}"; Flags: shellexec postinstall runmaximized; Description: "Open Discord Server for account info and help"
-Filename: "{app}\{code:InstallVersionFolder}\{#MainExeName}"; Description: "{cm:LaunchProgram,{#StringChange('Two Hours One Life', '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; Description: "{cm:LaunchProgram,{#StringChange('Two Hours One Life', '&', '&&')}}"; Flags: nowait postinstall skipifsilent
