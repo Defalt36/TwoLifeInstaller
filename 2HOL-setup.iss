@@ -94,12 +94,12 @@ begin
     '◆ Accept the server rules' + #13#10 +
     '◆ A Discord bot will send you your login credentials' + #13#10#13#10 +
     'Missed the message? Just type "/account" in any channel in the server.' + #13#10#13#10 +
-    'Note: You’ll need a Discord account. If you don''t have one just click the link and you should proceed to create your account.';
+    'Note: You’ll need a Discord account. Click the link to sign up and get started.';
   
   // Create discord link in info ´page
   DiscordLink := TNewStaticText.Create(WizardForm);
   DiscordLink.Parent := InfoPage.Surface;
-  DiscordLink.Caption := '📢 JOIN THE DISCORD SERVER TO GET YOUR LOGIN INFO 📢';
+  DiscordLink.Caption := '✦ JOIN THE DISCORD SERVER TO GET YOUR LOGIN INFO ✦';
   DiscordLink.AutoSize := True;
   DiscordLink.Cursor := crHand;
   DiscordLink.Font.Color := clNavy
@@ -506,13 +506,10 @@ begin
 end;
 
 [Files]
-; It's already there
-; Source: "{app}\{code:InstallVersionFolder}\*"; DestDir: "{code:InstallVersionFolder}"; Flags: external recursesubdirs
 ; Temporary Files
-Source: "7zip\7za.exe"; DestDir: "{tmp}"; Flags: dontcopy
 Source: "{tmp}\latest.json"; DestDir: "{tmp}"; Flags: external deleteafterinstall
-;Source: "{tmp}\extraction_progress.txt"; DestDir: "{tmp}"; Flags: external deleteafterinstall
-;Source: "{tmp}\2HOL-latest.zip"; DestDir: "{tmp}"; Flags: external deleteafterinstall
+Source: "7zip\7za.exe"; DestDir: "{tmp}"; Flags: dontcopy
+; Permanent Files
 Source: "icon.ico"; DestDir: "{app}"
 Source: "twotech.ico"; DestDir: "{app}"
 
