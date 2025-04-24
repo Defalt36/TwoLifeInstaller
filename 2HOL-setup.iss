@@ -174,11 +174,9 @@ begin
   Result := 0;
   NumberOfExtracted := 0;
 
-  // Not accurate because only counts files and folders on root, -Recursive is accurate and slower
-  Params := '-Command "(Get-ChildItem -Path '''+ FolderPath +''').Count"';
-
-  // This uses powershell to count how many files where already extracted
-  if ExecAndCaptureOutput('powershell.exe',
+  // This uses cmd to count how many files were already extracted
+  Params := '/C dir /d /b "' + FolderPath + '" | find /c /v ""'
+  if ExecAndCaptureOutput('cmd.exe',
       Params,
       '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode, ConsoleOut) then begin
     if not ConsoleOut.Error then begin
@@ -388,7 +386,6 @@ begin
   Result := True;
   if CurPageID = wpReady then begin
     DownloadPage.Clear;
-    DownloadPage.Add('https://api.github.com/repos/twohoursonelife/OneLife/releases/latest', 'latest.json', '');
     DownloadPage.Show;
     
     DownloadPage.Add('https://api.github.com/repos/twohoursonelife/OneLife/releases/latest', 'latest.json', '');
