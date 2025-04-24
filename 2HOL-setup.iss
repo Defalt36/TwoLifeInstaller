@@ -248,15 +248,24 @@ var
   ConsoleOut: TExecOutput;
   ResultCode: Integer;
   I: Integer;
+  Params: String;
 begin
   Result := 0;
   NumberOfExtracted := 0;
+  
+  // Not accurate because only counts files and folders on root, -Recursive is accurate and slower
+  Params := '-Command "(Get-ChildItem -Path '''+ FolderPath +''').Count"';
+  
   // This uses powershell to count how many files where already extracted
   if ExecAndCaptureOutput('powershell.exe', 
-      '-Command "(Get-ChildItem -Path '''+ FolderPath +''' -Recurse).Count"',
+      Params,
       '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode, ConsoleOut) then begin
-    for I := 0 to GetArrayLength(ConsoleOut.StdOut) - 1 do begin
-      NumberOfExtracted := StrToIntDef(ConsoleOut.StdOut[I], 1);
+    if not ConsoleOut.Error then begin
+      for I := 0 to GetArrayLength(ConsoleOut.StdOut) - 1 do begin
+        NumberOfExtracted := StrToIntDef(ConsoleOut.StdOut[I], 1);
+      end;
+    end else begin
+      RaiseException('Error while trying to read decompressed file.');
     end;
   end;
   if not (NumberOfExtracted > TotalFilesCount) then
@@ -273,19 +282,30 @@ var
   ConsoleOut: TExecOutput;
   ResultCode: Integer;
   I: Integer;
+  ParamsBase: String;
+  ParamsExtra: String;
 begin
   ExtractProgressPage.Show;
   ExtractProgressPage.SetProgress(0, 100);
   
+  ParamsBase := '-Command "[System.Reflection.Assembly]::LoadWithPartialName(''System.IO.Compression.FileSystem''); [IO.Compression.ZipFile]::OpenRead(''' + ExtractingFrom + ''').Entries';
+  // Define whether to just count all the files in the compressed archive or count just the files and folders in the root
+  //ParamsExtra := '.Count"' // counts all files
+  ParamsExtra := ' | Where-Object { $_.FullName -match ''^[^/]+/[^/]+/?$'' } | Measure-Object | Select-Object -ExpandProperty Count"'
+
   // This uses powershell to count how many files the compressed game have
   if ExecAndCaptureOutput('powershell.exe', 
-    '-Command "[System.Reflection.Assembly]::LoadWithPartialName(''System.IO.Compression.FileSystem''); [IO.Compression.ZipFile]::OpenRead(''' + ExtractingFrom + ''').Entries.Count"', 
+    ParamsBase + ParamsExtra,
     '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode, ConsoleOut) then begin
-    for I := 0 to Length(ConsoleOut.StdOut) - 1 do begin
-      if StrToIntDef(ConsoleOut.StdOut[I], 0) <> 0 then begin
-        Log(ConsoleOut.StdOut[I] + ' FILES TO EXTRACT');
-        TotalFilesCount := StrToInt(ConsoleOut.StdOut[I]);
+    if not ConsoleOut.Error then begin
+      for I := 0 to Length(ConsoleOut.StdOut) - 1 do begin
+        if StrToIntDef(ConsoleOut.StdOut[I], 0) <> 0 then begin
+          Log(ConsoleOut.StdOut[I] + ' FILES TO EXTRACT');
+          TotalFilesCount := StrToInt(ConsoleOut.StdOut[I]);
+        end;
       end;
+    end else begin
+      RaiseException('Error while trying to read compressed file.');
     end;
   end;
   
