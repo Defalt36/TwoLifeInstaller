@@ -200,27 +200,28 @@ var
   ExtractProgress: Integer;
   TotalFilesCount: Integer;
   ConsoleOut: TExecOutput;
-  ParamsBase: String;
-  ParamsExtra: String;
+  Params: String;
   LineNumber: Integer;
+  StartPos: Integer;
+  SubStr: String;
 begin
   ExtractProgressPage.Show;
   ExtractProgressPage.SetProgress(0, 100);
 
-  ParamsBase := '-Command "[System.Reflection.Assembly]::LoadWithPartialName(''System.IO.Compression.FileSystem''); [IO.Compression.ZipFile]::OpenRead(''' + ExtractingFrom + ''').Entries';
-  // Define whether to just count all the files in the compressed archive or count just the files and folders in the root
-  //ParamsExtra := '.Count"' // counts all files
-  ParamsExtra := ' | Where-Object { $_.FullName -match ''^[^/]+/[^/]+/?$'' } | Measure-Object | Select-Object -ExpandProperty Count"'
-
-  // This uses powershell to count how many files the compressed game have
-  if ExecAndCaptureOutput('powershell.exe',
-    ParamsBase + ParamsExtra,
+  // This uses 7zip and powershell to count how many files the compressed game have
+  Params := ' l -bso1 -ba "' + ExtractingFrom + '" -xr!*\*\*';
+  if ExecAndCaptureOutput(ExpandConstant('{tmp}\7za.exe'),
+    Params,
     '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode, ConsoleOut) then begin
     if not ConsoleOut.Error then begin
       for LineNumber := 0 to Length(ConsoleOut.StdOut) - 1 do begin
-        if StrToIntDef(ConsoleOut.StdOut[LineNumber], 0) <> 0 then begin
-          Log(ConsoleOut.StdOut[LineNumber] + ' FILES TO EXTRACT');
-          TotalFilesCount := StrToInt(ConsoleOut.StdOut[LineNumber]);
+        StartPos := Pos('win\', ConsoleOut.StdOut[LineNumber]);
+        if StartPos > 0 then begin
+          SubStr := Copy(ConsoleOut.StdOut[LineNumber], StartPos + 4, Length(ConsoleOut.StdOut[LineNumber]) - StartPos + 1);
+          if not (SubStr = '') then begin
+            Log(SubStr);
+            Inc(TotalFilesCount);
+          end;
         end;
       end;
     end else begin
