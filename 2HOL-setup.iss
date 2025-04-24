@@ -242,47 +242,57 @@ begin
   ClearJsonParser(JsonParser);
 end;
 
-function GetExtractProgress(FilePath: String): Integer;
+function GetExtractProgress(TotalFilesCount: Integer; FolderPath: String): Integer;
 var
-  LineCount: Integer;
-  Lines: TArrayOfString;
-  LastLine: String;
-  PosOfPercent: Integer;
+  NumberOfExtracted: Integer;
+  ConsoleOut: TExecOutput;
+  ResultCode: Integer;
+  I: Integer;
 begin
   Result := 0;
-  if LoadStringsFromLockedFile(FilePath, Lines) then
-  begin
-    LineCount := GetArrayLength(Lines);
-    if LineCount <> 0 then
-    begin
-      LastLine := Lines[LineCount - 1];
-      PosOfPercent := Pos('%', LastLine);
-      
-      if PosOfPercent > 1 then
-      begin
-        Result := StrToIntDef(Copy(LastLine, 1, PosOfPercent - 1), 0);
-      end;
-    
-      if (Pos('Everything is Ok', LastLine) = 1) or (Pos('Compressed:', LastLine) = 1) then
-      begin
-        Result := 100;
-      end;
+  NumberOfExtracted := 0;
+  // This uses powershell to count how many files where already extracted
+  if ExecAndCaptureOutput('powershell.exe', 
+      '-Command "(Get-ChildItem -Path '''+ FolderPath +''' -Recurse).Count"',
+      '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode, ConsoleOut) then begin
+    for I := 0 to GetArrayLength(ConsoleOut.StdOut) - 1 do begin
+      NumberOfExtracted := StrToIntDef(ConsoleOut.StdOut[I], 1);
     end;
   end;
+  if not (NumberOfExtracted > TotalFilesCount) then
+    if TotalFilesCount <> 0 then begin
+      Result := Round((Double(NumberOfExtracted) / Double(TotalFilesCount)) * 100);
+    end;
+  Log('Extracted ' + IntToStr(NumberOfExtracted) + ' Files From ' + IntToStr(TotalFilesCount));
 end;
 
-procedure ShowProgressPageAndResolve(const OutputFile: String);
+procedure ShowProgressPageAndResolve(ExtractingFrom: String; ExtractingTo: String);
 var
   ExtractProgress: Integer;
+  TotalFilesCount: Integer;
+  ConsoleOut: TExecOutput;
+  ResultCode: Integer;
+  I: Integer;
 begin
   ExtractProgressPage.Show;
   ExtractProgressPage.SetProgress(0, 100);
-
+  
+  // This uses powershell to count how many files the compressed game have
+  if ExecAndCaptureOutput('powershell.exe', 
+    '-Command "[System.Reflection.Assembly]::LoadWithPartialName(''System.IO.Compression.FileSystem''); [IO.Compression.ZipFile]::OpenRead(''' + ExtractingFrom + ''').Entries.Count"', 
+    '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode, ConsoleOut) then begin
+    for I := 0 to Length(ConsoleOut.StdOut) - 1 do begin
+      if StrToIntDef(ConsoleOut.StdOut[I], 0) <> 0 then begin
+        Log(ConsoleOut.StdOut[I] + ' FILES TO EXTRACT');
+        TotalFilesCount := StrToInt(ConsoleOut.StdOut[I]);
+      end;
+    end;
+  end;
+  
   repeat
-    ExtractProgress := GetExtractProgress(OutputFile);
+    ExtractProgress := GetExtractProgress(TotalFilesCount, ExtractingTo);
     Log('Extract progress: ' + IntToStr(ExtractProgress) + '%');
     ExtractProgressPage.SetProgress(ExtractProgress, 100);
-    Sleep(500);
   until ExtractProgress >= 100;
 
   ExtractProgressPage.Hide;
@@ -395,7 +405,6 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  OutputFile: String;
   GameFile: String;
   GameFolder: String;
   ResultCode: Integer;
@@ -417,24 +426,18 @@ begin
       Exit;
     end;
     
-    OutputFile := ExpandConstant('{app}\extraction_progress.txt');
-    DeleteFile(OutputFile);
     ExtractTemporaryFile('7za.exe');
-    Params := '/C "' + ExpandConstant('{tmp}\7za.exe') + ' -bsp1 x "' + GameFile + '" -o"' + ExpandConstant('{app}') + '" -aos' + ' > "' + OutputFile + '"';
+    Params := ' -bsp1 x "' + GameFile + '" -o"' + ExpandConstant('{app}') + '" -aos';
     
     // This runs 7zip extraction asynchronously while saving progress to file
-    // It also gets flaged by security sofware because it's geting stdout out the cmd via '>' redirection
-    // However that's the only way to get real time extraction tracking
-    if Exec('cmd.exe', Params, '', SW_HIDE, ewNoWait, ResultCode) then
+    if Exec(ExpandConstant('{tmp}\7za.exe'), Params, '', SW_HIDE, ewNoWait, ResultCode) then
     begin
       Log('Extracting game...');
     end;
     ExtractProgress := 0;
     
-    ShowProgressPageAndResolve(OutputFile); // this will read the progress file that's being written asynchronously
-    
+    ShowProgressPageAndResolve(GameFile, GameFolder); // this will read the progress file that's being written asynchronously
     DeleteFile(GameFile);
-    DeleteFile(OutputFile);
     
     SaveInstalledVersion;
   end;
