@@ -3,6 +3,8 @@
 
 #define AppName "Two Hours One Life"
 #define AppPublisher "Two Hours One Life Community"
+#define AppComments "Online Society Building, Cooperation and"
+#define AppCopyright "Public Domain"
 #define WebsiteURL "https://twohoursonelife.com/"
 #define DiscordURL "https://discord.gg/twohoursonelife"
 #define TwoTechURL "https://twotech.twohoursonelife.com"
@@ -16,10 +18,12 @@ AppId={{7E08BD66-E46B-485D-A8B0-1C9E98B3E23D}
 AppName={#AppName}
 AppVerName={#AppName}
 AppPublisher={#AppPublisher}
+AppComments={#AppComments}
 AppPublisherURL={#WebsiteURL}
-AppSupportURL={#WebsiteURL}
-AppUpdatesURL={#WebsiteURL}
+AppSupportURL={#DiscordURL}
+AppCopyright={#AppCopyright}
 DefaultDirName={autopf}\{#MainFolder}
+DefaultGroupName={#MainFolder}
 DisableDirPage=auto
 UninstallDisplayIcon={app}\icon.ico
 ; Game will run on both x64 and x86 systems so just comment this and it defaults to what we want
@@ -31,9 +35,9 @@ OutputBaseFilename=2HOL-setup
 SetupIconFile=icon.ico
 SolidCompression=yes
 WizardStyle=modern
+WizardImageFile=background.bmp
 WizardResizable=no
 DisableWelcomePage=no
-WizardImageFile=background.bmp
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -42,27 +46,28 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 #include "JsonParser.pas"
 
 var
+  Index: Integer;
+  ResultCode: Integer;
   DownloadPage: TDownloadWizardPage;
   ExtractProgressPage: TOutputProgressWizardPage;
   CustomUninstallForm: TSetupForm;
-  UninstallShouldProceed: Boolean;
+  UninstallShouldStop: Boolean;
   UninstallVersionCheckBoxes: array of TNewCheckBox;
-  VersionFolderName: String;
+  VersionFolder: String;
 
 function OnDownloadProgress(const Url, FileName: String; const Progress, ProgressMax: Int64): Boolean;
 begin
-  if Progress = ProgressMax then
+  if Progress = ProgressMax then begin
     Log(Format('Successfully downloaded file to {tmp}: %s', [FileName]));
+  end;
   Result := True;
 end;
 
 procedure OpenDiscordLink(Sender: TObject);
-var
-  ErrCode: integer;
 begin
-  ShellExec('open', '{#DiscordURL}', '', '', SW_SHOW, ewNoWait, ErrCode);
+  ShellExec('open', '{#DiscordURL}', '', '', SW_SHOW, ewNoWait, ResultCode);
 end;
-  
+
 procedure InitializeWizard;
 var
   SubLabel: TLabel;
@@ -71,7 +76,7 @@ var
 begin
   DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), SetupMessage(msgPreparingDesc), @OnDownloadProgress);
   ExtractProgressPage := CreateOutputProgressPage('Extracting Game Files', 'Please wait while the game files are extracted...');
-  
+
   // Title for welcome page
   WizardForm.WelcomeLabel1.Caption := 'Welcome to Two Hours One Life!';
   WizardForm.WelcomeLabel2.Visible := False;
@@ -85,7 +90,7 @@ begin
   SubLabel.Font.Size := 9;
   SubLabel.Font.Style := [fsBold];
   SubLabel.Caption := 'Required steps to play Two Hours One Life:';
-  
+
   // Instructions in welcome page
   InfoLabel := TLabel.Create(WizardForm);
   InfoLabel.Parent := WizardForm.WelcomePage;
@@ -99,7 +104,7 @@ begin
     '◆ A Discord bot will send you your login credentials' + #13#10#13#10 +
     'Missed the message? Just type "/account" in any channel in the server.' + #13#10#13#10 +
     'Note: You’ll need a Discord account. Click the link to sign up and get started.';
-  
+
   // Create discord link in welcome page
   DiscordLink := TLabel.Create(WizardForm);
   DiscordLink.Parent := WizardForm.WelcomePage;
@@ -115,21 +120,17 @@ begin
   DiscordLink.Top := WizardForm.Height - 75;
   DiscordLink.OnClick := @OpenDiscordLink;
 end;
-  
+
 function GetJsonRoot(Output: TJsonParserOutput): TJsonObject;
 begin
   Result := Output.Objects[0];
 end;
 
 function FindJsonValue(Output: TJsonParserOutput; Parent: TJsonObject; Key: TJsonString; var Value: TJsonValue): Boolean;
-var
-  I: Integer;
 begin
-  for I := 0 to Length(Parent) - 1 do
-  begin
-    if Parent[I].Key = Key then
-    begin
-      Value := Parent[I].Value;
+  for Index := 0 to Length(Parent) - 1 do begin
+    if Parent[Index].Key = Key then begin
+      Value := Parent[Index].Value;
       Result := True;
       Exit;
     end;
@@ -145,27 +146,97 @@ begin
   Result :=
     FindJsonValue(Output, Parent, Key, JsonValue) and
     (JsonValue.Kind = JVKString);
-  if Result then
-  begin
+  if Result then begin
     Str := Output.Strings[JsonValue.Index];
   end;
 end;
 
 function ParseJsonAndLogErrors(var JsonParser: TJsonParser; const Source: WideString): Boolean;
-var
-  I: Integer;
 begin
   ParseJson(JsonParser, Source);
 
   Result := (Length(JsonParser.Output.Errors) = 0);
-  if not Result then
-  begin
+  if not Result then begin
     Log('Error parsing JSON');
-    for I := 0 to Length(JsonParser.Output.Errors) - 1 do
-    begin
-      Log(JsonParser.Output.Errors[I]);
+    for Index := 0 to Length(JsonParser.Output.Errors) - 1 do begin
+      Log(JsonParser.Output.Errors[Index]);
     end;
   end;
+end;
+
+function GetExtractProgress(TotalFilesCount: Integer; FolderPath: String): Integer;
+var
+  NumberOfExtracted: Integer;
+  ConsoleOut: TExecOutput;
+  Params: String;
+  LineNumber: Integer;
+begin
+  Result := 0;
+  NumberOfExtracted := 0;
+
+  // Not accurate because only counts files and folders on root, -Recursive is accurate and slower
+  Params := '-Command "(Get-ChildItem -Path '''+ FolderPath +''').Count"';
+
+  // This uses powershell to count how many files where already extracted
+  if ExecAndCaptureOutput('powershell.exe',
+      Params,
+      '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode, ConsoleOut) then begin
+    if not ConsoleOut.Error then begin
+      for LineNumber := 0 to GetArrayLength(ConsoleOut.StdOut) - 1 do begin
+        NumberOfExtracted := StrToIntDef(ConsoleOut.StdOut[LineNumber], 1);
+      end;
+    end else begin
+      RaiseException('Error while trying to read decompressed file.');
+    end;
+  end;
+  if not (NumberOfExtracted > TotalFilesCount) then begin
+    if TotalFilesCount <> 0 then begin
+      Result := Round((Double(NumberOfExtracted) / Double(TotalFilesCount)) * 100);
+    end;
+  end;
+  Log('Extracted ' + IntToStr(NumberOfExtracted) + ' Files From ' + IntToStr(TotalFilesCount));
+end;
+
+procedure ShowProgressPageAndResolve(ExtractingFrom: String; ExtractingTo: String);
+var
+  ExtractProgress: Integer;
+  TotalFilesCount: Integer;
+  ConsoleOut: TExecOutput;
+  ParamsBase: String;
+  ParamsExtra: String;
+  LineNumber: Integer;
+begin
+  ExtractProgressPage.Show;
+  ExtractProgressPage.SetProgress(0, 100);
+
+  ParamsBase := '-Command "[System.Reflection.Assembly]::LoadWithPartialName(''System.IO.Compression.FileSystem''); [IO.Compression.ZipFile]::OpenRead(''' + ExtractingFrom + ''').Entries';
+  // Define whether to just count all the files in the compressed archive or count just the files and folders in the root
+  //ParamsExtra := '.Count"' // counts all files
+  ParamsExtra := ' | Where-Object { $_.FullName -match ''^[^/]+/[^/]+/?$'' } | Measure-Object | Select-Object -ExpandProperty Count"'
+
+  // This uses powershell to count how many files the compressed game have
+  if ExecAndCaptureOutput('powershell.exe',
+    ParamsBase + ParamsExtra,
+    '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode, ConsoleOut) then begin
+    if not ConsoleOut.Error then begin
+      for LineNumber := 0 to Length(ConsoleOut.StdOut) - 1 do begin
+        if StrToIntDef(ConsoleOut.StdOut[LineNumber], 0) <> 0 then begin
+          Log(ConsoleOut.StdOut[LineNumber] + ' FILES TO EXTRACT');
+          TotalFilesCount := StrToInt(ConsoleOut.StdOut[LineNumber]);
+        end;
+      end;
+    end else begin
+      RaiseException('Error while trying to read compressed file.');
+    end;
+  end;
+
+  repeat
+    ExtractProgress := GetExtractProgress(TotalFilesCount, ExtractingTo);
+    Log('Extract progress: ' + IntToStr(ExtractProgress) + '%');
+    ExtractProgressPage.SetProgress(ExtractProgress, 100);
+  until ExtractProgress >= 100;
+
+  ExtractProgressPage.Hide;
 end;
 
 // extracts version number from 2HOL_win_v{NUMBER}.zip
@@ -188,28 +259,24 @@ end;
 function GetLastestRelease(Mode: String): String;
 var
   JsonParser: TJsonParser;
-  JsonRoot: TJsonObject;
   JsonValue: TJsonValue;
   AssetsArrayIndex: Integer;
   AssetObj: TJsonObject;
   AssetName, DownloadUrl: TJsonString;
-  I: Integer;
-  JsonAnsi: AnsiString;
-  JsonString: String;
+  RawJson: AnsiString;
+  ElementIndex: Integer;
 begin
   Result := '';  // default if nothing found
 
   // load & parse JSON
-  if not LoadStringFromFile(ExpandConstant('{tmp}\latest.json'), JsonAnsi) then
+  if not LoadStringFromFile(ExpandConstant('{tmp}\latest.json'), RawJson) then
     RaiseException('Failed to read latest.json');
-  JsonString := JsonAnsi;
 
-  if not ParseJsonAndLogErrors(JsonParser, JsonString) then
+  if not ParseJsonAndLogErrors(JsonParser, RawJson) then
     RaiseException('JSON parse failed');
-  JsonRoot := GetJsonRoot(JsonParser.Output);
 
   // grab the assets array
-  if not FindJsonValue(JsonParser.Output, JsonRoot, 'assets', JsonValue) then
+  if not FindJsonValue(JsonParser.Output, GetJsonRoot(JsonParser.Output), 'assets', JsonValue) then
     RaiseException('"assets" key not found');
   if JsonValue.Kind <> JVKArray then
     RaiseException('"assets" is not an array');
@@ -217,10 +284,10 @@ begin
   AssetsArrayIndex := JsonValue.Index;
 
   // scan for the right asset
-  for I := 0 to Length(JsonParser.Output.Arrays[AssetsArrayIndex]) - 1 do
+  for ElementIndex := 0 to Length(JsonParser.Output.Arrays[AssetsArrayIndex]) - 1 do
   begin
-    JsonValue := JsonParser.Output.Arrays[AssetsArrayIndex][I];
-    if JsonValue.Kind <> JVKObject then 
+    JsonValue := JsonParser.Output.Arrays[AssetsArrayIndex][ElementIndex];
+    if JsonValue.Kind <> JVKObject then
       Continue;
 
     AssetObj := JsonParser.Output.Objects[JsonValue.Index];
@@ -242,89 +309,13 @@ begin
   ClearJsonParser(JsonParser);
 end;
 
-function GetExtractProgress(TotalFilesCount: Integer; FolderPath: String): Integer;
-var
-  NumberOfExtracted: Integer;
-  ConsoleOut: TExecOutput;
-  ResultCode: Integer;
-  I: Integer;
-  Params: String;
-begin
-  Result := 0;
-  NumberOfExtracted := 0;
-  
-  // Not accurate because only counts files and folders on root, -Recursive is accurate and slower
-  Params := '-Command "(Get-ChildItem -Path '''+ FolderPath +''').Count"';
-  
-  // This uses powershell to count how many files where already extracted
-  if ExecAndCaptureOutput('powershell.exe', 
-      Params,
-      '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode, ConsoleOut) then begin
-    if not ConsoleOut.Error then begin
-      for I := 0 to GetArrayLength(ConsoleOut.StdOut) - 1 do begin
-        NumberOfExtracted := StrToIntDef(ConsoleOut.StdOut[I], 1);
-      end;
-    end else begin
-      RaiseException('Error while trying to read decompressed file.');
-    end;
-  end;
-  if not (NumberOfExtracted > TotalFilesCount) then
-    if TotalFilesCount <> 0 then begin
-      Result := Round((Double(NumberOfExtracted) / Double(TotalFilesCount)) * 100);
-    end;
-  Log('Extracted ' + IntToStr(NumberOfExtracted) + ' Files From ' + IntToStr(TotalFilesCount));
-end;
-
-procedure ShowProgressPageAndResolve(ExtractingFrom: String; ExtractingTo: String);
-var
-  ExtractProgress: Integer;
-  TotalFilesCount: Integer;
-  ConsoleOut: TExecOutput;
-  ResultCode: Integer;
-  I: Integer;
-  ParamsBase: String;
-  ParamsExtra: String;
-begin
-  ExtractProgressPage.Show;
-  ExtractProgressPage.SetProgress(0, 100);
-  
-  ParamsBase := '-Command "[System.Reflection.Assembly]::LoadWithPartialName(''System.IO.Compression.FileSystem''); [IO.Compression.ZipFile]::OpenRead(''' + ExtractingFrom + ''').Entries';
-  // Define whether to just count all the files in the compressed archive or count just the files and folders in the root
-  //ParamsExtra := '.Count"' // counts all files
-  ParamsExtra := ' | Where-Object { $_.FullName -match ''^[^/]+/[^/]+/?$'' } | Measure-Object | Select-Object -ExpandProperty Count"'
-
-  // This uses powershell to count how many files the compressed game have
-  if ExecAndCaptureOutput('powershell.exe', 
-    ParamsBase + ParamsExtra,
-    '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode, ConsoleOut) then begin
-    if not ConsoleOut.Error then begin
-      for I := 0 to Length(ConsoleOut.StdOut) - 1 do begin
-        if StrToIntDef(ConsoleOut.StdOut[I], 0) <> 0 then begin
-          Log(ConsoleOut.StdOut[I] + ' FILES TO EXTRACT');
-          TotalFilesCount := StrToInt(ConsoleOut.StdOut[I]);
-        end;
-      end;
-    end else begin
-      RaiseException('Error while trying to read compressed file.');
-    end;
-  end;
-  
-  repeat
-    ExtractProgress := GetExtractProgress(TotalFilesCount, ExtractingTo);
-    Log('Extract progress: ' + IntToStr(ExtractProgress) + '%');
-    ExtractProgressPage.SetProgress(ExtractProgress, 100);
-  until ExtractProgress >= 100;
-
-  ExtractProgressPage.Hide;
-end;
-
 function GetInstalledGameVersions(): TArrayOfString;
 var
   F: TFindRec;
   R: TArrayOfString;
-  I: Integer;
+  CurrentVersion: Integer;
 begin
-  I := 0;
+  CurrentVersion := 0;
   if FindFirst(ExpandConstant('{app}\*'), F) then
   try
     repeat
@@ -332,9 +323,9 @@ begin
          (F.Name <> '.') and (F.Name <> '..') and
          (Pos('2HOL_v', F.Name) = 1) then
       begin
-        SetArrayLength(R, I + 1);
-        R[I] := F.Name;
-        I := I + 1;
+        SetArrayLength(R, CurrentVersion + 1);
+        R[CurrentVersion] := F.Name;
+        CurrentVersion := CurrentVersion + 1;
       end;
     until not FindNext(F);
   finally
@@ -346,8 +337,9 @@ end;
 // this returns not the installing folder but the inner folder the game binary is located
 function ReturnVersionFolder(Param: String): String;
 begin
-  if VersionFolder = '' then
+  if VersionFolder = '' then begin
     VersionFolder := '2HOL_v' + ExtractVersionNumber(GetLastestRelease('filename')) + '_win';
+  end;
   Result := VersionFolder;
 end;
 
@@ -384,105 +376,97 @@ end;
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   // will skip folder selection if user is not installing as admin
-  if PageID = wpSelectDir then
-    if not IsAdminInstallMode then
-      Result := True; 
+  if PageID = wpSelectDir then begin
+    if not IsAdminInstallMode then begin
+      Result := True;
+    end;
+  end;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
-var
-  lastIndex: Integer;
 begin
-  if CurPageID = wpReady then begin  
+  Result := True;
+  if CurPageID = wpReady then begin
     DownloadPage.Clear;
     DownloadPage.Add('https://api.github.com/repos/twohoursonelife/OneLife/releases/latest', 'latest.json', '');
     DownloadPage.Show;
-    try
-      DownloadPage.Download;
-      
-      DownloadPage.Clear;
-      DownloadPage.Add(GetLastestRelease('link'), '2HOL-latest.zip', '');
-      DownloadPage.Show;
-      try
-        if not (LastInstalledVersion = ReturnVersionFolder('')) then
-          // only download the game if the last installed version is not equal to the lastest version
-          DownloadPage.Download;
-      except
-        SuppressibleMsgBox(AddPeriod(GetExceptionMessage), mbCriticalError, MB_OK, IDOK);
-        Result := False;
-      end;
-
-      Result := True;
-    except
-      SuppressibleMsgBox(AddPeriod(GetExceptionMessage), mbCriticalError, MB_OK, IDOK);
-      Result := False;
-    finally
-      DownloadPage.Hide;
+    
+    DownloadPage.Add('https://api.github.com/repos/twohoursonelife/OneLife/releases/latest', 'latest.json', '');
+    // Download json with lastest release information
+    if DownloadPage.Download < 0 then begin
+      RaiseException('Failed to download the latest release.');
     end;
-  end else
-    Result := True;
+
+    DownloadPage.Add(GetLastestRelease('link'), '2HOL-latest.zip', '');
+    // only download the game if the last installed version is not equal to the lastest version
+    if not (LastInstalledVersion = ReturnVersionFolder('')) then begin
+      if not FileExists('{app}\2HOL-latest.zip') then begin
+        if DownloadPage.Download < 0 then begin
+          RaiseException('Failed to download the latest release.');
+        end;
+      end;
+    end;
+
+    FileCopy(ExpandConstant('{tmp}\2HOL-latest.zip'), ExpandConstant('{app}\2HOL-latest.zip'), False);
+    DownloadPage.Hide;
+  end;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   GameFile: String;
   GameFolder: String;
-  ResultCode: Integer;
   Params: String;
   ExtractProgress: Integer;
 begin
   if CurStep = ssInstall then
   begin
-    GameFile := ExpandConstant('{tmp}\2HOL-latest.zip');
+    GameFile := ExpandConstant('{app}\2HOL-latest.zip');
     GameFolder := ExpandConstant('{app}\') + ReturnVersionFolder('');
-    
+
     if not FileExists(GameFile) then
     begin
       // if 2HOL-latest.zip doesn't exist it may mean the download was skipped because this version is already installed
       if DirExists(GameFolder) then begin
         MsgBox('Lastest game version already installed.', mbInformation, MB_OK);
-      end else 
-        MsgBox('The game was not properly downloaded and will not be installed.', mbInformation, MB_OK);
+      end else
+        RaiseException('The game was not properly downloaded and will not be installed.');
       Exit;
     end;
-    
+
     ExtractTemporaryFile('7za.exe');
     Params := ' -bsp1 x "' + GameFile + '" -o"' + ExpandConstant('{app}') + '" -aos';
-    
-    // This runs 7zip extraction asynchronously while saving progress to file
+
+    // This runs 7zip extraction asynchronously
     if Exec(ExpandConstant('{tmp}\7za.exe'), Params, '', SW_HIDE, ewNoWait, ResultCode) then
     begin
       Log('Extracting game...');
     end;
     ExtractProgress := 0;
-    
-    ShowProgressPageAndResolve(GameFile, GameFolder); // this will read the progress file that's being written asynchronously
-    DeleteFile(GameFile);
-    
+
+    // This will track progress in real time by comparing files in archive to files in the folder
+    ShowProgressPageAndResolve(GameFile, GameFolder);
+
     SaveInstalledVersion;
   end;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
-  index: Integer;
-  dirToDelete: String;
-  numberDeleted: Integer;
+  CheckboxIndex: Integer;
+  FolderToDelete: String;
 begin
-  if CurUninstallStep = usPostUninstall then
-  begin
-    numberDeleted := 0;
+  if CurUninstallStep = usPostUninstall then begin
     // find all checkboxes that are checked
-    for index := 0 to GetArrayLength(UninstallVersionCheckBoxes) - 1 do
-    begin
-      if (UninstallVersionCheckBoxes[index].Checked = True) and (Pos('2HOL_v', UninstallVersionCheckBoxes[index].Caption) = 1) then
+    for CheckboxIndex := 0 to GetArrayLength(UninstallVersionCheckBoxes) - 1 do begin
+      // VERY IMPORTANT CHECK, PRECEEDS DANGER
+      if (UninstallVersionCheckBoxes[CheckboxIndex].Checked = True) and (Pos('2HOL_v', UninstallVersionCheckBoxes[CheckboxIndex].Caption) = 1) then
         // DANGEROUS, DELETE GAME VERSIONS RECURSIVELY
-        dirToDelete := ExpandConstant('{app}\') + UninstallVersionCheckBoxes[index].Caption;
-        if (DirExists(dirToDelete)) then
+        FolderToDelete := ExpandConstant('{app}\') + UninstallVersionCheckBoxes[CheckboxIndex].Caption;
+        if (DirExists(FolderToDelete)) then
         begin
-          Log('Deleting: ' + dirToDelete);
-          DelTree(dirToDelete, True, True, True);
-          Inc(numberDeleted);
+          Log('Deleting: ' + FolderToDelete);
+          DelTree(FolderToDelete, True, True, True);
         end;
     end;
   end;
@@ -490,7 +474,7 @@ end;
 
 procedure NextFormButtonClick(Sender: TObject);
 begin
-  UninstallShouldProceed := True;
+  UninstallShouldStop := False;
   CustomUninstallForm.Close;
 end;
 
@@ -501,8 +485,9 @@ var
   NewLabel: TLabel;
   NextButton: TNewButton;
 begin
-  UninstallShouldProceed := False;
-  
+  Result := True;
+  UninstallShouldStop := True;
+
   CustomUninstallForm := CreateCustomForm;
   CustomUninstallForm.Caption := 'Uninstall Game Versions';
   CustomUninstallForm.Width := 300;
@@ -516,8 +501,7 @@ begin
   NewLabel.Left := 40;
 
   GameVersions := GetInstalledGameVersions();
-  for lastIndex := 0 to GetArrayLength(GameVersions) - 1 do
-  begin
+  for lastIndex := 0 to GetArrayLength(GameVersions) - 1 do begin
     // add checkboxes one below another
     AddCheckbox(GameVersions[lastIndex], True, 35 + (lastIndex*20));
   end;
@@ -533,17 +517,15 @@ begin
   NextButton.OnClick := @NextFormButtonClick;
 
   CustomUninstallForm.ShowModal; // This doesn't resolve until NextButton is clicked
-  
-  begin
-    if UninstallShouldProceed then begin
-      Result := True
-    end else
-      Result := False;
+
+  if UninstallShouldStop then begin
+    Result := False;
   end;
 end;
 
 [Files]
 ; Temporary Files
+;Source: "{app}\2HOL-latest.zip"; DestDir: "{app}"; Flags: external deleteafterinstall
 Source: "{tmp}\latest.json"; DestDir: "{tmp}"; Flags: external deleteafterinstall
 Source: "7zip\7za.exe"; DestDir: "{tmp}"; Flags: dontcopy
 Source: "background.bmp"; DestDir: "{tmp}"; Flags: dontcopy
@@ -556,14 +538,11 @@ Source: "twotech.ico"; DestDir: "{app}"
 Type: files; Name: "{app}\last_installed.txt"
 
 [Icons]
-Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
-Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
-Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
-Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"
-Name: "{autodesktop}\TwoTech - Crafting Reference"; Filename: "{#TwoTechURL}"; IconFilename: "{app}\twotech.ico"
+Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"; Comment: "Play Two Hours One Life"
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"; Comment: "Play Two Hours One Life"
+Name: "{autodesktop}\TwoTech - Crafting Reference"; Filename: "{#TwoTechURL}"; IconFilename: "{app}\twotech.ico"; Comment: "Learn how to craft every item in 2HOL"
 
 [Run]
-Filename: "{#WebsiteURL}"; Flags: shellexec postinstall runmaximized; Description: "Open 2HOL's Website"
-Filename: "{#DiscordURL}"; Flags: shellexec postinstall runmaximized; Description: "Open Discord Server for account info and help"
+Filename: "{#WebsiteURL}"; Flags: shellexec postinstall runmaximized unchecked; Description: "Open 2HOL's Website"
+Filename: "{#DiscordURL}"; Flags: shellexec postinstall runmaximized unchecked; Description: "Open Discord Server for account info and help"
 Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; Description: "{cm:LaunchProgram,{#StringChange('Two Hours One Life', '&', '&&')}}"; Flags: nowait postinstall skipifsilent
