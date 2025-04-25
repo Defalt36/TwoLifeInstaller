@@ -25,7 +25,6 @@ AppCopyright={#AppCopyright}
 DefaultDirName={autopf}\{#MainFolder}
 DefaultGroupName={#MainFolder}
 DisableDirPage=auto
-UninstallDisplayIcon={app}\icon.ico
 ; Game will run on both x64 and x86 systems so just comment this and it defaults to what we want
 ; ArchitecturesAllowed=x64compatible
 ; ArchitecturesInstallIn64BitMode=x64compatible
@@ -33,6 +32,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequiredOverridesAllowed=dialog
 OutputBaseFilename=2HOL-setup
 SetupIconFile=icon.ico
+UninstallDisplayIcon={app}\icon.ico
 WizardStyle=modern
 WizardImageFile=background.bmp
 WizardResizable=no
@@ -218,7 +218,6 @@ begin
         if StartPos > 0 then begin
           SubStr := Copy(ConsoleOut.StdOut[LineNumber], StartPos + 4, Length(ConsoleOut.StdOut[LineNumber]) - StartPos + 1);
           if not (SubStr = '') then begin
-            Log(SubStr);
             Inc(TotalFilesCount);
           end;
         end;
@@ -396,8 +395,10 @@ begin
 
     DownloadPage.Add(GetLastestRelease('link'), '2HOL-latest.zip', '');
     // only download the game if the last installed version is not equal to the lastest version
-    if not (LastInstalledVersion = ReturnVersionFolder('')) then begin
-      if not FileExists('{app}\2HOL-latest.zip') then begin
+    if LastInstalledVersion <> ReturnVersionFolder('') then begin
+      if FileExists(ExpandConstant('{app}\2HOL-latest.zip')) then begin
+        MsgBox('File already downloaded. Check instalation folder and delete files.', mbInformation, MB_OK);
+      end else begin
         if DownloadPage.Download < 0 then begin
           RaiseException('Failed to download the latest release.');
         end;
@@ -427,7 +428,7 @@ begin
       if DirExists(GameFolder) then begin
         MsgBox('Lastest game version already installed.', mbInformation, MB_OK);
       end else
-        RaiseException('The game was not properly downloaded and will not be installed.');
+        RaiseException('The game was not properly downloaded. Clear instalation folder.');
       Exit;
     end;
 
@@ -528,6 +529,7 @@ Source: "7zip\7za.exe"; DestDir: "{tmp}"; Flags: dontcopy
 Source: "background.bmp"; DestDir: "{tmp}"; Flags: dontcopy
 ; Permanent Files
 Source: "icon.ico"; DestDir: "{app}"
+Source: "inverted.ico"; DestDir: "{app}"
 Source: "twotech.ico"; DestDir: "{app}"
 
 [UninstallDelete]
@@ -535,9 +537,10 @@ Source: "twotech.ico"; DestDir: "{app}"
 Type: files; Name: "{app}\last_installed.txt"
 
 [Icons]
-Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"; Comment: "Play Two Hours One Life"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"; Comment: "Play Two Hours One Life"
 Name: "{autodesktop}\TwoTech - Crafting Reference"; Filename: "{#TwoTechURL}"; IconFilename: "{app}\twotech.ico"; Comment: "Learn how to craft every item in 2HOL"
+Name: "{group}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"; Comment: "Play Two Hours One Life"
+Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\inverted.ico"
 
 [Run]
 Filename: "{#WebsiteURL}"; Flags: shellexec postinstall runmaximized unchecked; Description: "Open 2HOL's Website"
