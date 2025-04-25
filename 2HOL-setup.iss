@@ -33,7 +33,6 @@ DisableProgramGroupPage=yes
 PrivilegesRequiredOverridesAllowed=dialog
 OutputBaseFilename=2HOL-setup
 SetupIconFile=icon.ico
-SolidCompression=yes
 WizardStyle=modern
 WizardImageFile=background.bmp
 WizardResizable=no
@@ -405,7 +404,7 @@ begin
       end;
     end;
 
-    FileCopy(ExpandConstant('{tmp}\2HOL-latest.zip'), ExpandConstant('{app}\2HOL-latest.zip'), False);
+    CopyFile(ExpandConstant('{tmp}\2HOL-latest.zip'), ExpandConstant('{app}\2HOL-latest.zip'), False);
     DownloadPage.Hide;
   end;
 end;
