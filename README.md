@@ -9,3 +9,7 @@ It automatically fetches the latest release of [Two Hours One Life](https://gith
 
 - Uses [7-Zip](https://www.7-zip.org/), bundled with the repo and licensed accordingly.
 - Uses [JsonParser](https://github.com/koldev/JsonParser), a public domain library for JSON parsing.
+
+## Notes
+
+- If installed on some folders the cache and logs will be written on %localappdata%\VirtualStore instead of the game folder.
