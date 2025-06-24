@@ -3,7 +3,7 @@
 
 #define AppName "Two Hours One Life"
 #define AppPublisher "Two Hours One Life Community"
-#define AppComments "Online Society Building, Cooperation and"
+#define AppComments "Online Society Building, Cooperation and Parenting"
 #define AppCopyright "Public Domain"
 #define WebsiteURL "https://twohoursonelife.com/"
 #define DiscordURL "https://discord.gg/twohoursonelife"
