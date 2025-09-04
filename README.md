@@ -14,4 +14,4 @@ It automatically fetches the latest release of [Two Hours One Life](https://gith
 
 - If installed on some folders the cache and logs will be written on %localappdata%\VirtualStore instead of the game folder.
 
-- Auto updates will break if installed on a folder you need administrative privileges to write.
+- Auto updates will break if installed on a folder you need administrative privileges to write. Can be mitigated by running game executable as administrator.
