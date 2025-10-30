@@ -22,21 +22,24 @@ AppComments={#AppComments}
 AppPublisherURL={#WebsiteURL}
 AppSupportURL={#DiscordURL}
 AppCopyright={#AppCopyright}
-DefaultDirName={autopf}\{#MainFolder}
+CreateAppDir=yes
+DefaultDirName={localappdata}\{#MainFolder}
 DefaultGroupName={#MainFolder}
-DisableDirPage=auto
+DisableDirPage=no
 ; Game will run on both x64 and x86 systems so just comment this and it defaults to what we want
 ; ArchitecturesAllowed=x64compatible
 ; ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
-PrivilegesRequiredOverridesAllowed=dialog
+DisableWelcomePage=no
+PrivilegesRequired=lowest
 OutputBaseFilename=2HOL-setup
 SetupIconFile=icon.ico
 UninstallDisplayIcon={app}\icon.ico
+UsePreviousAppDir=no
 WizardStyle=modern
 WizardImageFile=background.bmp
 WizardResizable=no
-DisableWelcomePage=no
+
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -384,13 +387,16 @@ function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
   if CurPageID = wpReady then begin
+    CreateDir(ExpandConstant('{app}'));
+    
     DownloadPage.Clear;
     DownloadPage.Show;
     
     DownloadPage.Add('https://api.github.com/repos/twohoursonelife/OneLife/releases/latest', 'latest.json', '');
     // Download json with lastest release information
     if DownloadPage.Download < 0 then begin
-      RaiseException('Failed to download the latest release.');
+      RaiseException('Failed to download the release info file.');
+      Exit;
     end;
 
     DownloadPage.Add(GetLastestRelease('link'), '2HOL-latest.zip', '');
@@ -401,6 +407,7 @@ begin
       end else begin
         if DownloadPage.Download < 0 then begin
           RaiseException('Failed to download the latest release.');
+          Exit;
         end;
       end;
     end;
