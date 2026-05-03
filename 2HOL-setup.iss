@@ -395,24 +395,23 @@ begin
     DownloadPage.Add('https://api.github.com/repos/twohoursonelife/OneLife/releases/latest', 'latest.json', '');
     // Download json with lastest release information
     if DownloadPage.Download < 0 then begin
+      DownloadPage.Hide;
       RaiseException('Failed to download the release info file.');
-      Exit;
     end;
 
-    DownloadPage.Add(GetLastestRelease('link'), '2HOL-latest.zip', '');
     // only download the game if the last installed version is not equal to the lastest version
     if LastInstalledVersion <> ReturnVersionFolder('') then begin
-      if FileExists(ExpandConstant('{app}\2HOL-latest.zip')) then begin
-        MsgBox('File already downloaded. Check instalation folder and delete files.', mbInformation, MB_OK);
-      end else begin
-        if DownloadPage.Download < 0 then begin
-          RaiseException('Failed to download the latest release.');
-          Exit;
-        end;
+      DownloadPage.Add(GetLastestRelease('link'), '2HOL-latest.zip', '');
+      if DownloadPage.Download < 0 then begin
+        DownloadPage.Hide;
+        RaiseException('Failed to download the latest release.');
       end;
+      CopyFile(ExpandConstant('{tmp}\2HOL-latest.zip'), ExpandConstant('{app}\2HOL-latest.zip'), False);
+    end else begin
+      DownloadPage.Hide;
+      RaiseException('Latest game version already installed:' + LastInstalledVersion);
     end;
-
-    CopyFile(ExpandConstant('{tmp}\2HOL-latest.zip'), ExpandConstant('{app}\2HOL-latest.zip'), False);
+    
     DownloadPage.Hide;
   end;
 end;
