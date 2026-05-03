@@ -534,7 +534,7 @@ end;
 
 [Files]
 ; Temporary Files
-;Source: "{app}\2HOL-latest.zip"; DestDir: "{app}"; Flags: external deleteafterinstall
+Source: "{app}\2HOL-latest.zip"; DestDir: "{app}"; Flags: external deleteafterinstall
 Source: "{tmp}\latest.json"; DestDir: "{tmp}"; Flags: external deleteafterinstall
 Source: "7zip\7za.exe"; DestDir: "{tmp}"; Flags: dontcopy
 Source: "background.bmp"; DestDir: "{tmp}"; Flags: dontcopy
@@ -542,6 +542,7 @@ Source: "background.bmp"; DestDir: "{tmp}"; Flags: dontcopy
 Source: "icon.ico"; DestDir: "{app}"
 Source: "inverted.ico"; DestDir: "{app}"
 Source: "twotech.ico"; DestDir: "{app}"
+Source: "townplanner.ico"; DestDir: "{app}"
 
 [UninstallDelete]
 ; If this file is deleted it will override on next installation if set on same folder
@@ -551,6 +552,7 @@ Type: files; Name: "{app}\last_installed.txt"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"; Comment: "Play Two Hours One Life"
 Name: "{autodesktop}\TwoTech - Crafting Reference"; Filename: "{#TwoTechURL}"; IconFilename: "{app}\twotech.ico"; Comment: "Learn how to craft every item in 2HOL"
 Name: "{group}\{#AppName}"; Filename: "{app}\{code:ReturnVersionFolder}\{#MainExeName}"; IconFilename: "{app}\icon.ico"; Comment: "Play Two Hours One Life"
+Name: "{group}\Town Planner"; Filename: "{app}\{code:ReturnVersionFolder}\TownPlanner.exe"; IconFilename: "{app}\townplanner.ico"; Comment: "Plan towns on 2HOL with this editor"
 Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\inverted.ico"
 
 [Run]
