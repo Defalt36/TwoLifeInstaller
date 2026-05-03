@@ -38,8 +38,6 @@ UninstallDisplayIcon={app}\icon.ico
 UsePreviousAppDir=no
 WizardStyle=modern
 WizardImageFile=background.bmp
-WizardResizable=no
-
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -82,23 +80,27 @@ begin
   // Title for welcome page
   WizardForm.WelcomeLabel1.Caption := 'Welcome to Two Hours One Life!';
   WizardForm.WelcomeLabel2.Visible := False;
+  //WizardForm.Font.Name := 'Tahoma';
+  WizardForm.Font.Size := 9;
 
   // Subtitle for welcome page
   SubLabel := TLabel.Create(WizardForm);
   SubLabel.Parent := WizardForm.WelcomePage;
-  SubLabel.AutoSize := True;
-  SubLabel.WordWrap := True;
-  SubLabel.Top := 75;
-  SubLabel.Font.Size := 9;
+  //SubLabel.Color := clRed;
+  //SubLabel.Transparent := False;
+  SubLabel.Top := WizardForm.WelcomeLabel1.Top + WizardForm.WelcomeLabel1.Height;
+  SubLabel.Left := WizardForm.WelcomeLabel1.Left;
+  SubLabel.Font.Size := 10;
   SubLabel.Font.Style := [fsBold];
   SubLabel.Caption := 'Required steps to play Two Hours One Life:';
 
   // Instructions in welcome page
   InfoLabel := TLabel.Create(WizardForm);
   InfoLabel.Parent := WizardForm.WelcomePage;
-  InfoLabel.AutoSize := True;
-  InfoLabel.WordWrap := True;
-  InfoLabel.Top := 100;
+  //InfoLabel.Color := clYellow;
+  //InfoLabel.Transparent := False;
+  InfoLabel.Left := WizardForm.WelcomeLabel1.Left;
+  InfoLabel.Top := SubLabel.Top + SubLabel.Height + 20;
   InfoLabel.Font.Size := 9;
   InfoLabel.Caption :=
     '◆ Join the Discord server for the game' + #13#10 +
@@ -106,21 +108,26 @@ begin
     '◆ A Discord bot will send you your login credentials' + #13#10#13#10 +
     'Missed the message? Just type "/account" in any channel in the server.' + #13#10#13#10 +
     'Note: You’ll need a Discord account. Click the link to sign up and get started.';
+  InfoLabel.Width := WizardForm.WelcomePage.ClientWidth - WizardForm.WelcomeLabel1.Left - 15;
+  InfoLabel.WordWrap := True;
 
   // Create discord link in welcome page
   DiscordLink := TLabel.Create(WizardForm);
   DiscordLink.Parent := WizardForm.WelcomePage;
-  DiscordLink.Caption :=
-    'Click to Join the Server for Your Login Info:' + #13#10 +
-    '{#DiscordURL}';
+  //DiscordLink.Color := clBlue;
+  //DiscordLink.Transparent := False;
+  DiscordLink.Top := InfoLabel.Top + InfoLabel.Height + 50;
+  DiscordLink.Left := WizardForm.WelcomeLabel1.Left;
   DiscordLink.Alignment := taCenter;
-  DiscordLink.AutoSize := True;
   DiscordLink.Cursor := crHand;
   DiscordLink.Font.Color := clNavy;
   DiscordLink.Font.Size := 11;
   DiscordLink.Font.Style := [fsBold];
-  DiscordLink.Top := WizardForm.Height - 75;
   DiscordLink.OnClick := @OpenDiscordLink;
+  DiscordLink.Caption :=
+    'Click to Join the Server for Your Login Info:' + #13#10 +
+    '{#DiscordURL}';
+  DiscordLink.Width := WizardForm.WelcomePage.ClientWidth - WizardForm.WelcomeLabel1.Left - 15;
 end;
 
 function GetJsonRoot(Output: TJsonParserOutput): TJsonObject;
@@ -492,10 +499,8 @@ begin
   Result := True;
   UninstallShouldStop := True;
 
-  CustomUninstallForm := CreateCustomForm;
+  CustomUninstallForm := CreateCustomForm(300, 150, false, false);
   CustomUninstallForm.Caption := 'Uninstall Game Versions';
-  CustomUninstallForm.Width := 300;
-  CustomUninstallForm.Height := 150;
   CustomUninstallForm.Position := poScreenCenter;
 
   NewLabel := TLabel.Create(CustomUninstallForm);
